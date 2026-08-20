@@ -1,0 +1,518 @@
+{
+	"name": "Tendem: self-driving delegation",
+	"nodes": [
+		{
+			"parameters": {
+				"content": "## How this works\n\n**Chat message → Delegate → poll loop.** Waiting costs zero LLM tokens: *Check & Advance* long-polls on Tendem's server (up to 240 × 30s ≈ 2h per pass) and loops on `pending`.\n\nWhen Tendem sends a message, the *Classify Tendem Message* node decides structurally which wire it goes down: a real scoping question flows to the answer agent and back into the loop; a message that already IS the answer (Tendem answers trivial briefs for free in the chat) or needs nothing flows straight to *Deliver Result* — it has no wire to Reply, so nothing gets sent back.\n\n**Money:** quotes route to *Approve*, whose policy ships as **Never** — it reports the quote and charges nothing. Open it and pick *Under Max Price* (set a cap) or *From Decision Field* (wire a Slack/form approval) when you're ready to let it spend.\n\n**After import:** select your **Tendem API** credential on the 4 Tendem Expert nodes and your **OpenRouter** credential on the model node. Replace *Deliver Result* with Slack/email/whatever.",
+				"height": 420,
+				"width": 420
+			},
+			"id": "note-1",
+			"name": "Sticky Note",
+			"type": "n8n-nodes-base.stickyNote",
+			"typeVersion": 1,
+			"position": [
+				-560,
+				-140
+			]
+		},
+		{
+			"parameters": {
+				"options": {}
+			},
+			"id": "chat-trigger-1",
+			"name": "When chat message received",
+			"type": "@n8n/n8n-nodes-langchain.chatTrigger",
+			"typeVersion": 1.1,
+			"position": [
+				-80,
+				60
+			]
+		},
+		{
+			"parameters": {
+				"operation": "delegate",
+				"request": "={{ $json.chatInput }}",
+				"taskName": "",
+				"conversationId": "",
+				"inputBinaryFields": ""
+			},
+			"id": "delegate-1",
+			"name": "Delegate to Tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
+			"typeVersion": 1,
+			"position": [
+				160,
+				60
+			]
+		},
+		{
+			"parameters": {
+				"operation": "check",
+				"taskId": "={{ $('Delegate to Tendem').first().json.task_id }}",
+				"maxRounds": 240
+			},
+			"id": "check-1",
+			"name": "Check & Advance",
+			"type": "n8n-nodes-tendem.tendemExpert",
+			"typeVersion": 1,
+			"position": [
+				400,
+				60
+			]
+		},
+		{
+			"parameters": {
+				"rules": {
+					"values": [
+						{
+							"conditions": {
+								"options": {
+									"caseSensitive": true,
+									"typeValidation": "strict",
+									"version": 2
+								},
+								"combinator": "and",
+								"conditions": [
+									{
+										"leftValue": "={{ $json.outcome }}",
+										"rightValue": "pending",
+										"operator": {
+											"type": "string",
+											"operation": "equals"
+										}
+									}
+								]
+							},
+							"renameOutput": true,
+							"outputKey": "pending"
+						},
+						{
+							"conditions": {
+								"options": {
+									"caseSensitive": true,
+									"typeValidation": "strict",
+									"version": 2
+								},
+								"combinator": "and",
+								"conditions": [
+									{
+										"leftValue": "={{ $json.outcome }}",
+										"rightValue": "question",
+										"operator": {
+											"type": "string",
+											"operation": "equals"
+										}
+									}
+								]
+							},
+							"renameOutput": true,
+							"outputKey": "question"
+						},
+						{
+							"conditions": {
+								"options": {
+									"caseSensitive": true,
+									"typeValidation": "strict",
+									"version": 2
+								},
+								"combinator": "and",
+								"conditions": [
+									{
+										"leftValue": "={{ $json.outcome }}",
+										"rightValue": "quote",
+										"operator": {
+											"type": "string",
+											"operation": "equals"
+										}
+									}
+								]
+							},
+							"renameOutput": true,
+							"outputKey": "quote"
+						},
+						{
+							"conditions": {
+								"options": {
+									"caseSensitive": true,
+									"typeValidation": "strict",
+									"version": 2
+								},
+								"combinator": "and",
+								"conditions": [
+									{
+										"leftValue": "={{ $json.outcome }}",
+										"rightValue": "approved",
+										"operator": {
+											"type": "string",
+											"operation": "equals"
+										}
+									}
+								]
+							},
+							"renameOutput": true,
+							"outputKey": "approved"
+						},
+						{
+							"conditions": {
+								"options": {
+									"caseSensitive": true,
+									"typeValidation": "strict",
+									"version": 2
+								},
+								"combinator": "and",
+								"conditions": [
+									{
+										"leftValue": "={{ $json.outcome }}",
+										"rightValue": "result",
+										"operator": {
+											"type": "string",
+											"operation": "equals"
+										}
+									}
+								]
+							},
+							"renameOutput": true,
+							"outputKey": "result"
+						}
+					]
+				},
+				"options": {
+					"fallbackOutput": "extra"
+				}
+			},
+			"id": "switch-1",
+			"name": "Route Outcome",
+			"type": "n8n-nodes-base.switch",
+			"typeVersion": 3.2,
+			"position": [
+				660,
+				60
+			]
+		},
+		{
+			"parameters": {
+				"promptType": "define",
+				"text": "=Tendem asked this scoping question about a delegated task:\n\n{{ $json.question }}\n\nThe original request was:\n\n{{ $('When chat message received').first().json.chatInput }}\n\nAnswer the question concisely and decisively on behalf of the requester. If it offers options, pick the most reasonable default rather than deferring. Reply with the answer text only — no preamble.",
+				"options": {}
+			},
+			"id": "agent-2",
+			"name": "Answer Scoping Question",
+			"type": "@n8n/n8n-nodes-langchain.agent",
+			"typeVersion": 2.1,
+			"position": [
+				1200,
+				-280
+			]
+		},
+		{
+			"parameters": {
+				"model": "openai/gpt-5.4",
+				"options": {}
+			},
+			"id": "model-1",
+			"name": "OpenRouter Chat Model",
+			"type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+			"typeVersion": 1,
+			"position": [
+				940,
+				40
+			]
+		},
+		{
+			"parameters": {
+				"operation": "reply",
+				"taskId": "={{ $('Delegate to Tendem').first().json.task_id }}",
+				"replyText": "={{ $json.output }}",
+				"maxRounds": 20
+			},
+			"id": "reply-1",
+			"name": "Reply to Tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
+			"typeVersion": 1,
+			"position": [
+				1460,
+				-280
+			]
+		},
+		{
+			"parameters": {
+				"operation": "approve",
+				"taskId": "={{ $('Delegate to Tendem').first().json.task_id }}",
+				"approvalPolicy": "never"
+			},
+			"id": "approve-1",
+			"name": "Approve (policy: Never — edit me)",
+			"type": "n8n-nodes-tendem.tendemExpert",
+			"typeVersion": 1,
+			"position": [
+				940,
+				220
+			]
+		},
+		{
+			"parameters": {},
+			"id": "deliver-1",
+			"name": "Deliver Result (replace me)",
+			"type": "n8n-nodes-base.noOp",
+			"typeVersion": 1,
+			"position": [
+				940,
+				400
+			]
+		},
+		{
+			"parameters": {},
+			"id": "attention-1",
+			"name": "Needs Attention (topup / closed)",
+			"type": "n8n-nodes-base.noOp",
+			"typeVersion": 1,
+			"position": [
+				940,
+				540
+			]
+		},
+		{
+			"parameters": {
+				"content": "### ⚠️ The Approve node is where money lives\n\nPolicy ships as **Never**: a `quote` flows through unchanged, nothing is charged, and the *Approved?* gate parks the run in *Needs Attention* — check the quote there and decide.\n\nTo let it spend: open the node → Approval Policy → **Under Max Price** + set the cap, or **From Decision Field** wired to a human approval. Approved tasks loop back to polling automatically.",
+				"height": 240,
+				"width": 340
+			},
+			"id": "note-2",
+			"name": "Sticky Note 2",
+			"type": "n8n-nodes-base.stickyNote",
+			"typeVersion": 1,
+			"position": [
+				1460,
+				160
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"options": {
+						"caseSensitive": true,
+						"typeValidation": "strict",
+						"version": 2
+					},
+					"combinator": "and",
+					"conditions": [
+						{
+							"leftValue": "={{ $json.outcome }}",
+							"rightValue": "approved",
+							"operator": {
+								"type": "string",
+								"operation": "equals"
+							}
+						}
+					]
+				},
+				"options": {}
+			},
+			"id": "if-approved-1",
+			"name": "Approved?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2.2,
+			"position": [
+				1200,
+				220
+			]
+		},
+		{
+			"parameters": {
+				"inputText": "={{ $json.question }}",
+				"categories": {
+					"categories": [
+						{
+							"category": "needs_answer",
+							"description": "Tendem asked a question or requested information; the delegated task cannot proceed until someone answers it."
+						},
+						{
+							"category": "complete_or_no_action",
+							"description": "The message already contains the final answer or result of the original request, or it states that no further action is needed, or it is a mere acknowledgment. Nothing should be sent back."
+						}
+					]
+				},
+				"options": {}
+			},
+			"id": "classifier-1",
+			"name": "Classify Tendem Message",
+			"type": "@n8n/n8n-nodes-langchain.textClassifier",
+			"typeVersion": 1.1,
+			"position": [
+				940,
+				-280
+			]
+		}
+	],
+	"connections": {
+		"When chat message received": {
+			"main": [
+				[
+					{
+						"node": "Delegate to Tendem",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Delegate to Tendem": {
+			"main": [
+				[
+					{
+						"node": "Check & Advance",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Check & Advance": {
+			"main": [
+				[
+					{
+						"node": "Route Outcome",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Route Outcome": {
+			"main": [
+				[
+					{
+						"node": "Check & Advance",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Classify Tendem Message",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Approve (policy: Never — edit me)",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Check & Advance",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Deliver Result (replace me)",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Needs Attention (topup / closed)",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Answer Scoping Question": {
+			"main": [
+				[
+					{
+						"node": "Reply to Tendem",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Reply to Tendem": {
+			"main": [
+				[
+					{
+						"node": "Route Outcome",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Approve (policy: Never — edit me)": {
+			"main": [
+				[
+					{
+						"node": "Approved?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"OpenRouter Chat Model": {
+			"ai_languageModel": [
+				[
+					{
+						"node": "Answer Scoping Question",
+						"type": "ai_languageModel",
+						"index": 0
+					},
+					{
+						"node": "Classify Tendem Message",
+						"type": "ai_languageModel",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Approved?": {
+			"main": [
+				[
+					{
+						"node": "Check & Advance",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Needs Attention (topup / closed)",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Classify Tendem Message": {
+			"main": [
+				[
+					{
+						"node": "Answer Scoping Question",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Deliver Result (replace me)",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"settings": {
+		"executionOrder": "v1"
+	},
+	"pinData": {}
+}

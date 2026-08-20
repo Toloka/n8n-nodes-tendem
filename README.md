@@ -98,6 +98,24 @@ model when to reach for it, so no system-prompt choreography is needed. Give an 
 Delegate + Check + Reply and it can drive a task end to end without ever being able to spend;
 add Approve with a policy only when the workflow's spend rules are settled.
 
+## Example workflow: self-driving delegation
+
+[`examples/self-driving-delegation.json`](./examples/self-driving-delegation.json) — import it
+via the editor's **⋯ → Import from URL** with the raw link:
+
+```
+https://raw.githubusercontent.com/Toloka/n8n-nodes-tendem/main/examples/self-driving-delegation.json
+```
+
+A chat message delegates the work, then a loop drives the task to completion **without an LLM in
+the waiting path**: Check & Advance long-polls server-side and loops on `pending` for free; a
+Text Classifier decides structurally whether Tendem's message is a scoping question (answered by
+a small agent, replied automatically) or already the final answer (Tendem answers trivial briefs
+free in the chat — the run then ends with it); quotes park at an Approve node whose policy ships
+as **Never** — flip it to *Under Max Price* or wire *From Decision Field* to a human approval to
+let it spend. After import, select your Tendem credential on the four Tendem Expert nodes and an
+LLM credential on the model node.
+
 ## Operations
 
 The raw **Tendem** node, one operation per protocol tool:
