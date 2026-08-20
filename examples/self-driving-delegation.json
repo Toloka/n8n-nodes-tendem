@@ -3,7 +3,7 @@
 	"nodes": [
 		{
 			"parameters": {
-				"content": "## How this works\n\n**Chat message → Delegate → poll loop.** Waiting costs zero LLM tokens: *Check & Advance* long-polls on Tendem's server (up to 240 × 30s ≈ 2h per pass) and loops on `pending`.\n\nWhen Tendem sends a message, the *Classify Tendem Message* node decides structurally which wire it goes down: a real scoping question flows to the answer agent and back into the loop; a message that already IS the answer (Tendem answers trivial briefs for free in the chat) or needs nothing flows straight to *Deliver Result* — it has no wire to Reply, so nothing gets sent back.\n\n**Money:** quotes route to *Approve*, whose policy ships as **Never** — it reports the quote and charges nothing. Open it and pick *Under Max Price* (set a cap) or *From Decision Field* (wire a Slack/form approval) when you're ready to let it spend.\n\n**After import:** select your **Tendem API** credential on the 4 Tendem Expert nodes and your **OpenRouter** credential on the model node. Replace *Deliver Result* with Slack/email/whatever.",
+				"content": "## How this works\n\n**Chat message → Delegate → poll loop.** Waiting costs zero LLM tokens: *Check & Advance* long-polls on Tendem's server (up to 240 × 30s ≈ 2h per pass) and loops on `pending`.\n\nWhen Tendem sends a message, the *Classify Tendem Message* node decides structurally which wire it goes down: a real scoping question flows to the answer agent and back into the loop; a message that already IS the answer (Tendem answers trivial briefs for free in the chat) or needs nothing flows straight to *Deliver Result* — it has no wire to Reply, so nothing gets sent back.\n\n**Money:** quotes route to *Approve*, whose policy ships as **Never** — it reports the quote and charges nothing. Open it and pick *Under Max Price* (set a cap) or *From Decision Field* (wire a Slack/form approval) when you're ready to let it spend.\n\nFiles attached via the chat **paperclip** upload to the task automatically (node 0.2.3+).\n\n**After import:** select your **Tendem API** credential on the 4 Tendem Expert nodes and your **OpenRouter** credential on the model node. Replace *Deliver Result* with Slack/email/whatever.",
 				"height": 420,
 				"width": 420
 			},
@@ -18,7 +18,9 @@
 		},
 		{
 			"parameters": {
-				"options": {}
+				"options": {
+					"allowFileUploads": true
+				}
 			},
 			"id": "chat-trigger-1",
 			"name": "When chat message received",
