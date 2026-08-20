@@ -61,16 +61,36 @@ function readNextAction(task: IDataObject): string {
 }
 
 /**
- * Parses the server's price — a formatted string like "$40.00" (or already a number) — into a
- * number, or undefined when there is no usable price yet.
+ * Parses the server's price into a number, or undefined when there is no usable price yet. Live
+ * payloads use several shapes: a money object `{ amount, currency, formatted }` (get_contract), a
+ * formatted string like "$40.00" (get_task), or a bare number.
  */
 export function parsePrice(raw: unknown): number | undefined {
 	if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+	if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+		const money = raw as { amount?: unknown; formatted?: unknown };
+		if (typeof money.amount === 'number' && Number.isFinite(money.amount)) return money.amount;
+		return parsePrice(money.formatted);
+	}
 	if (typeof raw !== 'string') return undefined;
 	const match = raw.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
 	if (!match) return undefined;
 	const value = Number(match[0]);
 	return Number.isFinite(value) ? value : undefined;
+}
+
+/** The human-readable form of a price payload, for approve_task's guidance text. */
+export function formatPrice(raw: unknown): string {
+	if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+		const money = raw as { formatted?: unknown; amount?: unknown; currency?: unknown };
+		if (typeof money.formatted === 'string' && money.formatted !== '') return money.formatted;
+		if (typeof money.amount === 'number') {
+			return `${money.amount} ${typeof money.currency === 'string' ? money.currency : ''}`.trim();
+		}
+	}
+	if (typeof raw === 'string') return raw;
+	if (typeof raw === 'number') return String(raw);
+	return '';
 }
 
 /** Derives a short task name from the request when the caller did not provide one. */
@@ -330,7 +350,7 @@ export async function approve(deps: EngineDeps, params: ApproveParams): Promise<
 	const approval = await deps.caller.callTool(TENDEM_TOOLS.APPROVE_TASK, {
 		task_id: params.taskId,
 		name: readString(task, 'name') || 'Delegated task',
-		price: typeof priceRaw === 'string' ? priceRaw : String(priceRaw),
+		price: formatPrice(priceRaw),
 	});
 
 	if (approval.approved !== true) {

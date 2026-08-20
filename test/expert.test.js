@@ -42,12 +42,34 @@ function deps(caller) {
 
 // --- helpers ---------------------------------------------------------------
 
-test('parsePrice reads formatted money and rejects junk', () => {
+test('parsePrice reads every live price shape and rejects junk', () => {
 	assert.equal(parsePrice('$40.00'), 40);
 	assert.equal(parsePrice('1,250.50 USD'), 1250.5);
 	assert.equal(parsePrice(25), 25);
+	// The live get_contract shape, verified 2026-08-20 on a real quote:
+	assert.equal(parsePrice({ amount: 3, currency: 'USD', formatted: '$3.00' }), 3);
+	assert.equal(parsePrice({ formatted: '$7.50' }), 7.5);
 	assert.equal(parsePrice('free-ish'), undefined);
 	assert.equal(parsePrice(null), undefined);
+	assert.equal(parsePrice({}), undefined);
+});
+
+test('approve handles the live money-object price end to end', async () => {
+	const caller = scriptedCaller({
+		get_task: { task_id: TASK_ID, name: 'Forecast', status: 'LISTENING' },
+		get_contract: {
+			state: 'available',
+			contract: { title: 'Produce Berlin forecast' },
+			price: { amount: 3, currency: 'USD', formatted: '$3.00' },
+		},
+		approve_task: { approved: true },
+	});
+
+	const out = await approve(deps(caller), { taskId: TASK_ID, maxPrice: 25 });
+
+	assert.equal(out.outcome, 'approved');
+	const approval = caller.calls.find((c) => c.name === 'approve_task');
+	assert.equal(approval.args.price, '$3.00');
 });
 
 test('deriveTaskName trims to a short name and never returns empty', () => {
