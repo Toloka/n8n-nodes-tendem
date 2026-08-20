@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-tendem",
-	"version": "0.1.3",
+	"version": "0.2.0",
 	"description": "Delegate tasks to vetted human experts with Tendem — create a task, read the priced contract, approve the spend, poll, and fetch the result.",
 	"license": "MIT",
 	"homepage": "https://github.com/Toloka/n8n-nodes-tendem#readme",
@@ -49,7 +49,8 @@
 			"dist/credentials/TendemApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/Tendem/Tendem.node.js"
+			"dist/nodes/Tendem/Tendem.node.js",
+			"dist/nodes/TendemExpert/TendemExpert.node.js"
 		]
 	},
 	"devDependencies": {

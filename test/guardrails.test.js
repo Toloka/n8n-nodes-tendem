@@ -8,6 +8,7 @@ const {
 	OPERATION_TOOL_ALLOWLIST,
 	SPEND_COMMITTING_TOOLS,
 	SPEND_OPERATION_KEY,
+	SPEND_OPERATION_KEYS,
 	TENDEM_TOOLS,
 	ToolNotPermittedError,
 	guardFor,
@@ -50,12 +51,16 @@ test('approve_task is the only tool classified as spend-committing', () => {
 	assert.deepEqual([...SPEND_COMMITTING_TOOLS], [TENDEM_TOOLS.APPROVE_TASK]);
 });
 
-test('exactly one operation is allowed to reach a spend-committing tool', () => {
+test('only the declared operations can reach a spend-committing tool', () => {
 	const operationsThatCanSpend = Object.entries(OPERATION_TOOL_ALLOWLIST)
 		.filter(([, tools]) => tools.some((tool) => SPEND_COMMITTING_TOOLS.includes(tool)))
-		.map(([key]) => key);
+		.map(([key]) => key)
+		.sort();
 
-	assert.deepEqual(operationsThatCanSpend, [SPEND_OPERATION_KEY]);
+	// task:approve is the raw node's explicit human gate; the two expert rows belong to the
+	// Tendem Expert engine, whose sole approval path is cap-gated (see expert.test.js).
+	assert.deepEqual(operationsThatCanSpend, [...SPEND_OPERATION_KEYS].sort());
+	assert.ok(SPEND_OPERATION_KEYS.includes(SPEND_OPERATION_KEY));
 });
 
 test('every operation allowlist is non-empty and names only real Tendem tools', () => {
@@ -74,9 +79,9 @@ test('all 11 tools stay reachable through some operation', () => {
 	}
 });
 
-test('the guard blocks approve_task from every operation except the approval one', async () => {
+test('the guard blocks approve_task from every operation except the spend-capable ones', async () => {
 	for (const key of Object.keys(OPERATION_TOOL_ALLOWLIST)) {
-		if (key === SPEND_OPERATION_KEY) continue;
+		if (SPEND_OPERATION_KEYS.includes(key)) continue;
 
 		const inner = spyCaller();
 		const guarded = guardFor(inner, key);
