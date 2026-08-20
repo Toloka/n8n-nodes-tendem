@@ -96,7 +96,7 @@ export const expertFields: INodeProperties[] = [
 		default: '',
 		displayOptions: showFor(['delegate']),
 		description:
-			'Comma-separated names of binary properties on the input item to upload as task input files. Uploaded after creation and announced to the expert automatically.',
+			'Which binary properties of the input item to upload as task input files (comma-separated). Leave EMPTY to upload every file attached to the item — e.g. chat-panel attachments — which is usually what you want. Uploads happen after creation and are announced to the expert automatically.',
 		placeholder: 'data, attachment_1',
 	},
 	{

@@ -380,3 +380,40 @@ test('delegate through the node wires chat input into a created task', async () 
 	assert.equal(output[0].json.outcome, 'created');
 	assert.equal(output[0].json.task_id, TASK_ID);
 });
+
+test('delegate auto-uploads chat attachments when Input Binary Fields is empty', async () => {
+	const { makeExecuteContext: ctx } = require('./harness.js');
+	ctx._puts = [];
+	const server = mockMcpServer({
+		toolHandler: ({ name, args }) => {
+			if (name === 'create_task') return { task_id: TASK_ID, status: 'ACTING' };
+			if (name === 'get_file_upload_url')
+				return { upload_url: 'https://acc.dfs.core.windows.net/fs/t?sig=s' };
+			if (name === 'read_chat') return { messages: [], last_seen_offset: 1 };
+			if (name === 'send_message') return { response_type: 'sync', last_seen_offset: 2 };
+			throw new Error(`unexpected: ${name}`);
+		},
+	});
+	const context = ctx({
+		params: { operation: 'delegate', request: 'Compare pricing in the attached file', taskName: '', conversationId: '', inputBinaryFields: '' },
+		items: [{
+			json: {},
+			binary: {
+				data0: { data: Buffer.from('csv,content').toString('base64'), fileName: 'eu-freight-brokers.csv' },
+			},
+		}],
+		requester: server.requester,
+	});
+	const output = (await TendemExpert.prototype.execute.call(context))[0];
+
+	assert.deepEqual(output[0].json.files_attached, ['eu-freight-brokers.csv']);
+	assert.equal(ctx._puts.length, 1);
+	assert.equal(
+		ctx._puts[0].url,
+		'https://acc.blob.core.windows.net/fs/t/eu-freight-brokers.csv?sig=s',
+	);
+	assert.equal(ctx._puts[0].headers['x-ms-blob-type'], 'BlockBlob');
+	const announce = server.toolCalls.find((c) => c.name === 'send_message');
+	assert.match(announce.args.text, /eu-freight-brokers\.csv/);
+	ctx._puts = undefined;
+});

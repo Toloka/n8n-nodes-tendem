@@ -144,6 +144,22 @@ function makeExecuteContext(options) {
 			throw new Error(`test harness: parameter "${name}" not provided`);
 		},
 		helpers: {
+			assertBinaryData(itemIndex, propertyName) {
+				const binary = (items[itemIndex] || {}).binary || {};
+				if (!binary[propertyName]) {
+					throw new Error(`test harness: no binary property "${propertyName}"`);
+				}
+				return binary[propertyName];
+			},
+			async getBinaryDataBuffer(itemIndex, propertyName) {
+				const entry = this.assertBinaryData(itemIndex, propertyName);
+				return Buffer.from(entry.data || '', 'base64');
+			},
+			async httpRequest(requestOptions) {
+				const puts = makeExecuteContext._puts;
+				if (puts) puts.push(requestOptions);
+				return {};
+			},
 			httpRequestWithAuthentication: async function (credentialType, requestOptions) {
 				if (credentialType !== 'tendemApi') {
 					throw new Error(`unexpected credential type: ${credentialType}`);

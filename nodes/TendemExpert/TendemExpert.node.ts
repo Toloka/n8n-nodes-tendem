@@ -124,10 +124,14 @@ async function runExpertOperation(
 			const request = this.getNodeParameter('request', i) as string;
 			const taskName = this.getNodeParameter('taskName', i, '') as string;
 			const conversationId = this.getNodeParameter('conversationId', i, '') as string;
-			const binaryFields = (this.getNodeParameter('inputBinaryFields', i, '') as string)
+			const named = (this.getNodeParameter('inputBinaryFields', i, '') as string)
 				.split(',')
 				.map((name) => name.trim())
 				.filter((name) => name !== '');
+			// Empty means "everything attached to the item" — the common case, e.g. files added
+			// through the chat panel's paperclip, whose property names nobody should have to guess.
+			const binaryFields =
+				named.length > 0 ? named : Object.keys(this.getInputData()[i].binary ?? {});
 
 			const files: Record<string, Buffer> = {};
 			for (const field of binaryFields) {
