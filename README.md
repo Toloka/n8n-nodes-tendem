@@ -1,6 +1,6 @@
 # n8n-nodes-tendem
 
-An [n8n](https://n8n.io) community node for [Tendem](https://tendem.ai) — a hybrid
+n8n community nodes for [Tendem](https://tendem.ai) — a hybrid
 AI + human task service. You submit a task in plain English, Tendem's orchestrator
 scopes it in a chat and quotes a transparent price, and once a **human** approves
 the spend, a vetted expert executes it and returns verified results as markdown
@@ -14,6 +14,8 @@ policy.
 
 - [Installation](#installation)
 - [Credentials](#credentials)
+- [The two nodes](#the-two-nodes)
+- [Tendem Expert: the high-level node](#tendem-expert-the-high-level-node)
 - [Operations](#operations)
 - [Approving a task spends real money](#approving-a-task-spends-real-money)
 - [Worked example](#worked-example-research-brief-end-to-end)
@@ -52,7 +54,53 @@ Tendem also supports interactive OAuth, which is what the Claude Code / Cursor /
 Gemini plugins use. n8n workflows run unattended, so this node deliberately does
 API keys only.
 
+## The two nodes
+
+The package installs two nodes sharing one credential:
+
+- **Tendem Expert** — the high-level node. Five lifecycle operations with the delegation
+  choreography built in; the one to reach for first, and the one to hand to AI Agents.
+- **Tendem** — the raw protocol node. All 11 Tendem MCP tools as granular operations, for
+  workflows that want full control over each step.
+
+## Tendem Expert: the high-level node
+
+Each operation returns an **outcome envelope** — branch on `outcome`, everything else rides
+along as data:
+
+| Operation | Spends money | Outcomes it returns |
+|---|---|---|
+| Delegate | no | `created` (with the `task_id` everything else needs) |
+| Check & Advance | no | `question`, `quote`, `result`, `pending`, `topup_required`, `closed` |
+| Reply | no | same as Check — it answers, then keeps advancing |
+| **Approve (Spends Money)** | **yes** | `approved`, `quote` (refused, nothing charged), `topup_required` |
+| Wait for Result | no | `result` (markdown + file URLs), `pending`, `quote`, `question` |
+
+What the node does for you, so neither workflows nor agents have to:
+
+- **Waiting is server-side.** Polling long-polls on Tendem's side and honours its pacing hints;
+  `pending` is always resumable — call again with the same `task_id`.
+- **The chat choreography is built in.** `await_input` becomes a `question` outcome with
+  Tendem's text; Reply answers at the live conversation offset and absorbs the race the
+  protocol allows.
+- **File upload is one field.** Name the binary properties in *Input Binary Fields* on
+  Delegate; the node mints the upload URL, does the host-swapped PUTs, and announces the
+  files to the expert.
+- **Money is one operation with a policy.** Approve is the only spending path, and its
+  *Approval Policy* says where consent comes from: **Never** (default — quotes stay data),
+  **Under Max Price** (auto-approve at or under a cap you set), **From Decision Field**
+  (a boolean driven by any upstream approval — Slack, form, IF), or **Always**. Whatever the
+  policy, the engine re-reads the live quote at approval time and never pays a price it
+  cannot parse.
+
+As an **AI Agent tool**, this is the node to attach: each operation's description tells the
+model when to reach for it, so no system-prompt choreography is needed. Give an agent
+Delegate + Check + Reply and it can drive a task end to end without ever being able to spend;
+add Approve with a policy only when the workflow's spend rules are settled.
+
 ## Operations
+
+The raw **Tendem** node, one operation per protocol tool:
 
 | Resource | Operation | Tendem tool | Spends money |
 |---|---|---|---|

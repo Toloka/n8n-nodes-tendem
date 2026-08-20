@@ -25,7 +25,15 @@ export type TendemToolName = (typeof TENDEM_TOOLS)[keyof typeof TENDEM_TOOLS];
  */
 export const SPEND_COMMITTING_TOOLS: readonly TendemToolName[] = [TENDEM_TOOLS.APPROVE_TASK];
 
-/** The only operation permitted to reach a spend-committing tool. */
+/**
+ * The only operations permitted to reach a spend-committing tool. `task:approve` is the raw
+ * node's explicit human gate (confirmSpend + price). The two `expert:` rows belong to the Tendem
+ * Expert node's engine, whose single approval code path refuses unless a positive design-time
+ * `maxPrice` covers the server's current quote — see nodes/TendemExpert/engine.ts.
+ */
+export const SPEND_OPERATION_KEYS: readonly string[] = ['task:approve', 'expert:approve'];
+
+/** The raw node's spend operation. Kept for existing call sites and tests. */
 export const SPEND_OPERATION_KEY = 'task:approve';
 
 /**
@@ -68,6 +76,36 @@ export const OPERATION_TOOL_ALLOWLIST: Readonly<Record<string, readonly TendemTo
 	'chat:send': [TENDEM_TOOLS.SEND_MESSAGE, TENDEM_TOOLS.READ_CHAT],
 	'account:get': [TENDEM_TOOLS.GET_ACCOUNT],
 	'file:getUploadUrl': [TENDEM_TOOLS.GET_FILE_UPLOAD_URL],
+	// Tendem Expert node: the engine's state machine spans several protocol tools per operation.
+	// Delegate is create + optional upload + announce; check/reply/waitResult advance the loop and
+	// can NEVER spend; approve is the expert node's single spending operation, cap-gated in the
+	// engine against the server's current quote.
+	'expert:delegate': [
+		TENDEM_TOOLS.CREATE_TASK,
+		TENDEM_TOOLS.GET_FILE_UPLOAD_URL,
+		TENDEM_TOOLS.SEND_MESSAGE,
+		TENDEM_TOOLS.READ_CHAT,
+	],
+	'expert:check': [
+		TENDEM_TOOLS.GET_TASK,
+		TENDEM_TOOLS.READ_CHAT,
+		TENDEM_TOOLS.GET_CONTRACT,
+		TENDEM_TOOLS.GET_TASK_RESULT,
+	],
+	'expert:reply': [
+		TENDEM_TOOLS.SEND_MESSAGE,
+		TENDEM_TOOLS.GET_TASK,
+		TENDEM_TOOLS.READ_CHAT,
+		TENDEM_TOOLS.GET_CONTRACT,
+		TENDEM_TOOLS.GET_TASK_RESULT,
+	],
+	'expert:approve': [TENDEM_TOOLS.GET_TASK, TENDEM_TOOLS.GET_CONTRACT, TENDEM_TOOLS.APPROVE_TASK],
+	'expert:waitResult': [
+		TENDEM_TOOLS.GET_TASK,
+		TENDEM_TOOLS.READ_CHAT,
+		TENDEM_TOOLS.GET_CONTRACT,
+		TENDEM_TOOLS.GET_TASK_RESULT,
+	],
 };
 
 export interface ToolCaller {
