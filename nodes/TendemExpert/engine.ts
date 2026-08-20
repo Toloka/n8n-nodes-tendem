@@ -80,17 +80,33 @@ export function deriveTaskName(request: string): string {
 	return name === '' ? 'Delegated task' : name;
 }
 
-/** Messages Tendem posted after `fromOffset`, flattened to display text. */
+/** All chat messages, flattened to display text. */
 function collectMessages(chat: IDataObject): string {
+	return messageTexts(chat).join('\n\n').trim();
+}
+
+function messageTexts(chat: IDataObject): string[] {
 	const messages = chat.messages;
-	if (!Array.isArray(messages)) return '';
+	if (!Array.isArray(messages)) return [];
 	const parts: string[] = [];
 	for (const entry of messages) {
 		if (!entry || typeof entry !== 'object') continue;
 		const text = (entry as IDataObject).text;
 		if (typeof text === 'string' && text.trim() !== '') parts.push(text.trim());
 	}
-	return parts.join('\n\n').trim();
+	return parts;
+}
+
+/**
+ * The most recent chat message. On `await_input` Tendem spoke last, so this is what it just said
+ * — which is what a caller (or a model) should react to. The full transcript rides along
+ * separately: Tendem sometimes answers a trivial brief for free right in the chat, and then the
+ * "question" is really the final answer; deciding that is the caller's judgment call, so both
+ * views are provided.
+ */
+function latestMessage(chat: IDataObject): string {
+	const parts = messageTexts(chat);
+	return parts.length > 0 ? parts[parts.length - 1] : '';
 }
 
 async function latestOffset(caller: ToolCaller, taskId: string): Promise<number> {
@@ -193,7 +209,9 @@ export async function delegate(deps: EngineDeps, params: DelegateParams): Promis
 /**
  * The heart of the port: poll until the task needs something, then say — as data — what it needs.
  *
- *   await_input          -> `question` with Tendem's chat text (answer via Reply)
+ *   await_input          -> `question` with Tendem's LATEST message (full transcript alongside).
+ *                           Answer via Reply — or stop: a trivial brief may have been answered
+ *                           for free right there, and then the message IS the result.
  *   await_user_approval  -> `quote` with the contract scope and price. This function NEVER
  *                           approves — spending is the Approve operation's job, and only its.
  *   await_user_topup     -> `topup_required` with the task-bound URL; nothing was charged
@@ -222,7 +240,8 @@ export async function advance(deps: EngineDeps, params: AdvanceParams): Promise<
 			return {
 				outcome: 'question',
 				task_id: params.taskId,
-				question: collectMessages(chat),
+				question: latestMessage(chat),
+				chat_transcript: collectMessages(chat),
 				last_seen_offset: chat.last_seen_offset ?? 0,
 			};
 		}

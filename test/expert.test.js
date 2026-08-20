@@ -117,7 +117,8 @@ test('await_input surfaces the question as data, chat read from offset 0', async
 	const out = await advance(deps(caller), { taskId: TASK_ID });
 
 	assert.equal(out.outcome, 'question');
-	assert.match(out.question, /What city exactly\?/);
+	assert.equal(out.question, 'What city exactly?');
+	assert.match(out.chat_transcript, /brief[\s\S]*What city exactly\?/);
 	assert.equal(out.last_seen_offset, 2);
 	assert.equal(caller.countOf('approve_task'), 0);
 });
