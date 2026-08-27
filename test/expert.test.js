@@ -12,7 +12,7 @@ const {
 	parsePrice,
 	deriveTaskName,
 	blobUploadUrl,
-} = require('../dist/nodes/TendemExpert/engine.js');
+} = require('../dist/nodes/Tendem/engine.js');
 
 const TASK_ID = '6435d8a2-9742-4723-be25-0f88726a1f16';
 
@@ -296,7 +296,10 @@ const { mockMcpServer, makeExecuteContext } = require('./harness.js');
 
 async function executeExpert(params, toolHandler) {
 	const server = mockMcpServer({ toolHandler });
-	const context = makeExecuteContext({ params, requester: server.requester });
+	const context = makeExecuteContext({
+		params: { resource: 'expert', ...params },
+		requester: server.requester,
+	});
 	const output = await TendemExpert.prototype.execute.call(context);
 	return { output: output[0], server };
 }
@@ -395,7 +398,7 @@ test('delegate auto-uploads chat attachments when Input Binary Fields is empty',
 		},
 	});
 	const context = ctx({
-		params: { operation: 'delegate', request: 'Compare pricing in the attached file', taskName: '', conversationId: '', inputBinaryFields: '' },
+		params: { resource: 'expert', operation: 'delegate', request: 'Compare pricing in the attached file', taskName: '', conversationId: '', inputBinaryFields: '' },
 		items: [{
 			json: {},
 			binary: {

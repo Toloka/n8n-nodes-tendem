@@ -9,7 +9,7 @@ import type { INodeProperties } from 'n8n-workflow';
  */
 
 const showFor = (operations: string[]): INodeProperties['displayOptions'] => ({
-	show: { operation: operations },
+	show: { resource: ['expert'], operation: operations },
 });
 
 export const expertOperations: INodeProperties = {
@@ -18,6 +18,7 @@ export const expertOperations: INodeProperties = {
 	type: 'options',
 	noDataExpression: true,
 	default: 'delegate',
+	displayOptions: { show: { resource: ['expert'] } },
 	options: [
 		{
 			name: 'Approve (Spends Money)',
@@ -158,7 +159,7 @@ export const expertFields: INodeProperties[] = [
 		type: 'number',
 		default: 0,
 		typeOptions: { minValue: 0 },
-		displayOptions: { show: { operation: ['approve'], approvalPolicy: ['underMaxPrice'] } },
+		displayOptions: { show: { resource: ['expert'], operation: ['approve'], approvalPolicy: ['underMaxPrice'] } },
 		description:
 			'Spend cap in USD, set by the workflow author. The live quote is approved only when it is at or under this; a higher quote returns as data and charges nothing. This is the consent to spend — set it deliberately.',
 	},
@@ -167,7 +168,7 @@ export const expertFields: INodeProperties[] = [
 		name: 'approveDecision',
 		type: 'boolean',
 		default: false,
-		displayOptions: { show: { operation: ['approve'], approvalPolicy: ['decision'] } },
+		displayOptions: { show: { resource: ['expert'], operation: ['approve'], approvalPolicy: ['decision'] } },
 		description:
 			'Whether to commit the spend. Drive it from an expression carrying an upstream decision — a Slack approval, a Wait-for-form answer, an IF branch.',
 	},

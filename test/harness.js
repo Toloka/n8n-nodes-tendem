@@ -126,7 +126,7 @@ function makeExecuteContext(options) {
 	const node = {
 		id: 'node-1',
 		name: 'Tendem',
-		type: 'n8n-nodes-tendem.tendem',
+		type: 'n8n-nodes-tendem.tendemExpert',
 		typeVersion: 1,
 		position: [0, 0],
 		parameters: {},

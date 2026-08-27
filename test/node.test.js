@@ -7,7 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { Tendem } = require('../dist/nodes/Tendem/Tendem.node.js');
+const { TendemExpert } = require('../dist/nodes/TendemExpert/TendemExpert.node.js');
 const { TENDEM_TOOLS } = require('../dist/nodes/Tendem/tools.js');
 const { mockMcpServer, makeExecuteContext } = require('./harness.js');
 
@@ -23,7 +23,7 @@ async function execute(params, options) {
 		requester: server.requester,
 		continueOnFail: opts.continueOnFail,
 	});
-	const output = await Tendem.prototype.execute.call(context);
+	const output = await TendemExpert.prototype.execute.call(context);
 	return { output: output[0], server };
 }
 
@@ -44,6 +44,24 @@ const EVERY_OPERATION = [
 
 const APPROVED = { approved: true, task_id: TASK_ID, next_action: 'awaiting_tendem_work' };
 
+test('a workflow saved with the pre-0.3.0 Tendem Expert node still resolves (compat contract)', () => {
+	// Old workflows reference node type n8n-nodes-tendem.tendemExpert and store expert
+	// operations WITHOUT a resource parameter. n8n resolves missing parameters to their
+	// description defaults, so compatibility rests on exactly two facts pinned here.
+	const description = new TendemExpert().description;
+	assert.equal(description.name, 'tendemExpert');
+	const resource = description.properties.find((property) => property.name === 'resource');
+	assert.equal(resource.default, 'expert');
+	const expertOps = description.properties.find(
+		(property) => property.name === 'operation' &&
+			JSON.stringify(property.displayOptions).includes('expert'),
+	);
+	assert.deepEqual(
+		expertOps.options.map((option) => option.value).sort(),
+		['approve', 'check', 'delegate', 'reply', 'waitResult'],
+	);
+});
+
 test('the node reaches the Tendem endpoint carrying the attribution hash', async () => {
 	const { server } = await execute({ resource: 'account', operation: 'get' });
 
@@ -61,7 +79,7 @@ test('a credential endpoint override is honoured', async () => {
 		credentials: { endpoint: 'https://staging.example.test/mcp' },
 	});
 
-	await Tendem.prototype.execute.call(context);
+	await TendemExpert.prototype.execute.call(context);
 
 	for (const call of server.httpCalls) {
 		assert.equal(call.url, 'https://staging.example.test/mcp');
@@ -76,7 +94,7 @@ test('a blank credential endpoint falls back to the default', async () => {
 		credentials: { endpoint: '   ' },
 	});
 
-	await Tendem.prototype.execute.call(context);
+	await TendemExpert.prototype.execute.call(context);
 
 	for (const call of server.httpCalls) {
 		assert.equal(call.url, 'https://mcp.tendem.ai/mcp?utm_hash=83dad40a52');
@@ -187,7 +205,7 @@ test('a refused approval never reaches the Tendem server', async () => {
 		requester: server.requester,
 	});
 
-	await assert.rejects(async () => await Tendem.prototype.execute.call(context));
+	await assert.rejects(async () => await TendemExpert.prototype.execute.call(context));
 
 	assert.equal(server.countOf(TENDEM_TOOLS.APPROVE_TASK), 0);
 });

@@ -1,7 +1,7 @@
 import type { IDataObject } from 'n8n-workflow';
 
-import { TENDEM_TOOLS, type ToolCaller } from '../Tendem/tools';
-import { backoffMs, MIN_SERVER_BLOCK_MS } from '../Tendem/waitForTask';
+import { TENDEM_TOOLS, type ToolCaller } from './tools';
+import { backoffMs, MIN_SERVER_BLOCK_MS } from './waitForTask';
 
 /**
  * The Tendem delegation state machine, in code instead of prompts.
