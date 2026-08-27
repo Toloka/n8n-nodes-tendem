@@ -21,6 +21,8 @@ import {
 	taskFields,
 	taskOperations,
 } from './descriptions';
+import { expertFields, expertOperations } from './expertDescriptions';
+import { advance, approve, delegate, reply, waitForResult, type EngineDeps } from './engine';
 import {
 	McpSession,
 	TENDEM_DEFAULT_ENDPOINT,
@@ -32,13 +34,17 @@ import { guardFor, operationKey, TENDEM_TOOLS, type ToolCaller } from './tools';
 import { waitForTaskChange } from './waitForTask';
 
 /**
+ * One node, five resources. Expert is the high-level surface — the whole delegation choreography
+ * (create → upload → poll → classify → reply/approve → result) runs inside this node's code, see
+ * ./engine.ts — while Task/Chat/Account/File expose the raw Tendem MCP tools one call at a time.
+ *
  * `usableAsTool` is enabled: an AI agent can drive Tendem like any other paid-service node — the
  * same trust model as the LLM and HTTP nodes, where wiring a credential is the consent to spend
- * against it. Scoping and chatting are free; the one operation that charges the account is still
- * behind its own gates even for an agent: `approve_task` is reachable only from Task → Approve
- * (capability allowlist), which refuses unless `confirmSpend` is explicitly true and the quoted
- * price was passed through — so a spend is always a deliberate, logged, named-amount decision,
- * never a side effect.
+ * against it. Scoping and chatting are free; the one tool that charges the account is still behind
+ * its own gates even for an agent: `approve_task` is reachable only from Task → Approve (which
+ * refuses unless `confirmSpend` is explicitly true and the quoted price was passed through) and
+ * Expert → Approve (which re-reads the live quote and refuses unless the author's policy covers
+ * it) — so a spend is always a deliberate, logged, named-amount decision, never a side effect.
  */
 export class Tendem implements INodeType {
 	description: INodeTypeDescription = {
@@ -56,10 +62,12 @@ export class Tendem implements INodeType {
 		credentials: [{ name: 'tendemApi', required: true }],
 		properties: [
 			resourceField,
+			expertOperations,
 			taskOperations,
 			chatOperations,
 			accountOperations,
 			fileOperations,
+			...expertFields,
 			...taskFields,
 			...chatFields,
 			...fileFields,
@@ -95,10 +103,18 @@ export class Tendem implements INodeType {
 				const key = operationKey(resource, operation);
 
 				// Each item runs against a capability-scoped caller. `approve_task` is unreachable
-				// from every operation except `task:approve`.
+				// from every operation except `task:approve` and `expert:approve`.
 				const guarded: ToolCaller = guardFor(retrying, key);
 
-				const payload = await runOperation.call(this, guarded, key, i);
+				const payload =
+					resource === 'expert'
+						? await runExpertOperation.call(
+								this,
+								{ caller: guarded, sleep, now: () => Date.now() },
+								operation,
+								i,
+							)
+						: await runOperation.call(this, guarded, key, i);
 
 				returnData.push(
 					...this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(payload), {
@@ -335,4 +351,102 @@ async function approveTask(
 		spendBlocked: approved === false,
 		topupUrl: typeof response.topup_url === 'string' ? response.topup_url : null,
 	};
+}
+
+/**
+ * The Expert resource: the delegation choreography lives in this node's code (see ./engine.ts), so
+ * neither workflow authors nor AI agents have to teach a model the protocol. Five operations cover
+ * the whole lifecycle, every one of them resumable by task_id.
+ *
+ * The engine's envelopes are the results, and money is its own operation: Delegate/Check/Reply/Wait
+ * can never spend; Approve is the single spending path and refuses unless the author's policy
+ * covers the server's CURRENT quote. The default policy refuses everything — quotes stay data.
+ */
+async function runExpertOperation(
+	this: IExecuteFunctions,
+	deps: EngineDeps,
+	operation: string,
+	i: number,
+): Promise<IDataObject> {
+	switch (operation) {
+		case 'delegate': {
+			const request = this.getNodeParameter('request', i) as string;
+			const taskName = this.getNodeParameter('taskName', i, '') as string;
+			const conversationId = this.getNodeParameter('conversationId', i, '') as string;
+			const named = (this.getNodeParameter('inputBinaryFields', i, '') as string)
+				.split(',')
+				.map((name) => name.trim())
+				.filter((name) => name !== '');
+			// Empty means "everything attached to the item" — the common case, e.g. files added
+			// through the chat panel's paperclip, whose property names nobody should have to guess.
+			const binaryFields =
+				named.length > 0 ? named : Object.keys(this.getInputData()[i].binary ?? {});
+
+			const files: Record<string, Buffer> = {};
+			for (const field of binaryFields) {
+				const binary = this.helpers.assertBinaryData(i, field);
+				const data = await this.helpers.getBinaryDataBuffer(i, field);
+				files[binary.fileName ?? field] = data;
+			}
+
+			return await delegate(deps, {
+				request,
+				taskName,
+				conversationId,
+				files,
+				putFile: async (url, data) => {
+					await this.helpers.httpRequest({
+						method: 'PUT',
+						url,
+						body: data,
+						headers: { 'x-ms-blob-type': 'BlockBlob' },
+					});
+				},
+			});
+		}
+
+		case 'check':
+			return await advance(deps, {
+				taskId: this.getNodeParameter('taskId', i) as string,
+				maxRounds: this.getNodeParameter('maxRounds', i, 20) as number,
+			});
+
+		case 'reply':
+			return await reply(deps, {
+				taskId: this.getNodeParameter('taskId', i) as string,
+				reply: this.getNodeParameter('replyText', i) as string,
+				maxRounds: this.getNodeParameter('maxRounds', i, 20) as number,
+			});
+
+		case 'approve': {
+			// Every policy collapses to the engine's one primitive — the cap — so the guarantees
+			// (single spending path, live quote re-read, unparsable prices refused) hold for all.
+			const policy = this.getNodeParameter('approvalPolicy', i, 'never') as string;
+			let cap = 0;
+			if (policy === 'underMaxPrice') {
+				cap = this.getNodeParameter('maxPrice', i, 0) as number;
+			} else if (policy === 'decision') {
+				cap = (this.getNodeParameter('approveDecision', i, false) as boolean)
+					? Number.POSITIVE_INFINITY
+					: 0;
+			} else if (policy === 'always') {
+				cap = Number.POSITIVE_INFINITY;
+			}
+			return await approve(deps, {
+				taskId: this.getNodeParameter('taskId', i) as string,
+				maxPrice: cap,
+			});
+		}
+
+		case 'waitResult':
+			return await waitForResult(deps, {
+				taskId: this.getNodeParameter('taskId', i) as string,
+				maxRounds: this.getNodeParameter('maxRounds', i, 20) as number,
+			});
+
+		default:
+			throw new NodeOperationError(this.getNode(), `Unsupported Tendem Expert operation "${operation}"`, {
+				itemIndex: i,
+			});
+	}
 }

@@ -29,7 +29,7 @@ export const SPEND_COMMITTING_TOOLS: readonly TendemToolName[] = [TENDEM_TOOLS.A
  * The only operations permitted to reach a spend-committing tool. `task:approve` is the raw
  * node's explicit human gate (confirmSpend + price). The two `expert:` rows belong to the Tendem
  * Expert node's engine, whose single approval code path refuses unless a positive design-time
- * `maxPrice` covers the server's current quote — see nodes/TendemExpert/engine.ts.
+ * `maxPrice` covers the server's current quote — see nodes/Tendem/engine.ts.
  */
 export const SPEND_OPERATION_KEYS: readonly string[] = ['task:approve', 'expert:approve'];
 

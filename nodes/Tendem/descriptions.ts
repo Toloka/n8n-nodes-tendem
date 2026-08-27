@@ -19,11 +19,14 @@ export const resourceField: INodeProperties = {
 	type: 'options',
 	noDataExpression: true,
 	default: 'task',
+	// Alphabetized by name — n8n's community lint requires it. `default` above decides what the
+	// node starts on, not position.
 	options: [
-		{ name: 'Task', value: 'task' },
-		{ name: 'Chat', value: 'chat' },
 		{ name: 'Account', value: 'account' },
+		{ name: 'Chat', value: 'chat' },
+		{ name: 'Expert', value: 'expert' },
 		{ name: 'File', value: 'file' },
+		{ name: 'Task', value: 'task' },
 	],
 };
 

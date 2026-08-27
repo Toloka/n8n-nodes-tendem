@@ -12,7 +12,7 @@ const {
 	parsePrice,
 	deriveTaskName,
 	blobUploadUrl,
-} = require('../dist/nodes/TendemExpert/engine.js');
+} = require('../dist/nodes/Tendem/engine.js');
 
 const TASK_ID = '6435d8a2-9742-4723-be25-0f88726a1f16';
 
@@ -291,13 +291,16 @@ test('the guard makes approve_task structurally unreachable from check/reply/wai
 
 // --- node-level: the approval policies through the real execute() -------------
 
-const { TendemExpert } = require('../dist/nodes/TendemExpert/TendemExpert.node.js');
+const { Tendem } = require('../dist/nodes/Tendem/Tendem.node.js');
 const { mockMcpServer, makeExecuteContext } = require('./harness.js');
 
 async function executeExpert(params, toolHandler) {
 	const server = mockMcpServer({ toolHandler });
-	const context = makeExecuteContext({ params, requester: server.requester });
-	const output = await TendemExpert.prototype.execute.call(context);
+	const context = makeExecuteContext({
+		params: { resource: 'expert', ...params },
+		requester: server.requester,
+	});
+	const output = await Tendem.prototype.execute.call(context);
 	return { output: output[0], server };
 }
 
@@ -395,7 +398,7 @@ test('delegate auto-uploads chat attachments when Input Binary Fields is empty',
 		},
 	});
 	const context = ctx({
-		params: { operation: 'delegate', request: 'Compare pricing in the attached file', taskName: '', conversationId: '', inputBinaryFields: '' },
+		params: { resource: 'expert', operation: 'delegate', request: 'Compare pricing in the attached file', taskName: '', conversationId: '', inputBinaryFields: '' },
 		items: [{
 			json: {},
 			binary: {
@@ -404,7 +407,7 @@ test('delegate auto-uploads chat attachments when Input Binary Fields is empty',
 		}],
 		requester: server.requester,
 	});
-	const output = (await TendemExpert.prototype.execute.call(context))[0];
+	const output = (await Tendem.prototype.execute.call(context))[0];
 
 	assert.deepEqual(output[0].json.files_attached, ['eu-freight-brokers.csv']);
 	assert.equal(ctx._puts.length, 1);

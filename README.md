@@ -1,6 +1,6 @@
 # n8n-nodes-tendem
 
-n8n community nodes for [Tendem](https://tendem.ai) — a hybrid
+The n8n community node for [Tendem](https://tendem.ai) — a hybrid
 AI + human task service. You submit a task in plain English, Tendem's orchestrator
 scopes it in a chat and quotes a transparent price, and once a **human** approves
 the spend, a vetted expert executes it and returns verified results as markdown
@@ -14,8 +14,8 @@ policy.
 
 - [Installation](#installation)
 - [Credentials](#credentials)
-- [The two nodes](#the-two-nodes)
-- [Tendem Expert: the high-level node](#tendem-expert-the-high-level-node)
+- [One node, five resources](#one-node-five-resources)
+- [The Expert resource: the high-level surface](#the-expert-resource-the-high-level-surface)
 - [Operations](#operations)
 - [Approving a task spends real money](#approving-a-task-spends-real-money)
 - [Worked example](#worked-example-research-brief-end-to-end)
@@ -54,16 +54,17 @@ Tendem also supports interactive OAuth, which is what the Claude Code / Cursor /
 Gemini plugins use. n8n workflows run unattended, so this node deliberately does
 API keys only.
 
-## The two nodes
+## One node, five resources
 
-The package installs two nodes sharing one credential:
+The package installs a single **Tendem** node. Its **Resource** selector splits the surface in
+two layers:
 
-- **Tendem Expert** — the high-level node. Five lifecycle operations with the delegation
+- **Expert** — the high-level surface. Five lifecycle operations with the delegation
   choreography built in; the one to reach for first, and the one to hand to AI Agents.
-- **Tendem** — the raw protocol node. All 11 Tendem MCP tools as granular operations, for
-  workflows that want full control over each step.
+- **Task / Chat / Account / File** — the raw protocol surface. All 11 Tendem MCP tools as
+  granular operations, for workflows that want full control over each step.
 
-## Tendem Expert: the high-level node
+## The Expert resource: the high-level surface
 
 Each operation returns an **outcome envelope** — branch on `outcome`, everything else rides
 along as data:
@@ -76,7 +77,7 @@ along as data:
 | **Approve (Spends Money)** | **yes** | `approved`, `quote` (refused, nothing charged), `topup_required` |
 | Wait for Result | no | `result` (markdown + file URLs), `pending`, `quote`, `question` |
 
-What the node does for you, so neither workflows nor agents have to:
+What the Expert resource does for you, so neither workflows nor agents have to:
 
 - **Waiting is server-side.** Polling long-polls on Tendem's side and honours its pacing hints;
   `pending` is always resumable — call again with the same `task_id`.
@@ -93,7 +94,7 @@ What the node does for you, so neither workflows nor agents have to:
   policy, the engine re-reads the live quote at approval time and never pays a price it
   cannot parse.
 
-As an **AI Agent tool**, this is the node to attach: each operation's description tells the
+As an **AI Agent tool**, this is the resource to attach: each operation's description tells the
 model when to reach for it, so no system-prompt choreography is needed. Give an agent
 Delegate + Check + Reply and it can drive a task end to end without ever being able to spend;
 add Approve with a policy only when the workflow's spend rules are settled.
@@ -113,12 +114,12 @@ Text Classifier decides structurally whether Tendem's message is a scoping quest
 a small agent, replied automatically) or already the final answer (Tendem answers trivial briefs
 free in the chat — the run then ends with it); quotes park at an Approve node whose policy ships
 as **Never** — flip it to *Under Max Price* or wire *From Decision Field* to a human approval to
-let it spend. After import, select your Tendem credential on the four Tendem Expert nodes and an
+let it spend. After import, select your Tendem credential on the four Tendem nodes and an
 LLM credential on the model node.
 
 ## Operations
 
-The raw **Tendem** node, one operation per protocol tool:
+The raw protocol surface, one operation per Tendem tool:
 
 | Resource | Operation | Tendem tool | Spends money |
 |---|---|---|---|
@@ -154,12 +155,13 @@ deliberate act rather than a step that can happen on the way to something else.
 Four things stand in the way, and they are structural, not documentation:
 
 1. **Approval is its own operation.** `approve_task` is reachable only from
-   Task → Approve. A workflow author has to add that node on purpose.
+   Task → Approve and Expert → Approve. A workflow author has to add that node
+   on purpose.
 2. **Per-operation capability guard.** Each operation executes against an
-   allowlist naming the single Tendem tool it may call. Approve is the only row
-   containing `approve_task`; every other operation is refused *before* any HTTP
-   request is made. Creating a task, polling one, or reading its chat cannot
-   approve it even if the code above them were wrong.
+   allowlist naming the Tendem tools it may call. The two Approve operations are
+   the only rows containing `approve_task`; every other operation is refused
+   *before* any HTTP request is made. Creating a task, polling one, or reading
+   its chat cannot approve it even if the code above them were wrong.
 3. **Confirm Spend must be on.** The Approve operation refuses while the
    **Confirm Spend** toggle is off. Drive it from an expression if a human
    decision upstream — an n8n Wait-for-form, a Slack approval, an email gate —
