@@ -49,7 +49,7 @@
 			"dist/credentials/TendemApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/Tendem/Tendem.node.js"
+			"dist/nodes/TendemExpert/TendemExpert.node.js"
 		]
 	},
 	"devDependencies": {

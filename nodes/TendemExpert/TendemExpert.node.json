@@ -1,8 +1,8 @@
 {
-	"node": "n8n-nodes-tendem.tendem",
+	"node": "n8n-nodes-tendem.tendemExpert",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
-	"categories": ["Utility", "Productivity"],
+	"categories": ["Development", "Productivity"],
 	"resources": {
 		"credentialDocumentation": [
 			{

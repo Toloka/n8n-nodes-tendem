@@ -324,6 +324,11 @@ is expected, and the confirming chat message settles it.
 ## Compatibility
 
 - n8n API version 1, node type version 1
+- **Upgrading from 0.2.x:** the package now installs a single node. Workflows built with the
+  **Tendem Expert** node keep working unchanged — it is that node that survived (same type id,
+  now displayed as "Tendem"), with the raw protocol surface folded in as the Task / Chat /
+  Account / File resources. Workflows built with the old *raw* `tendem` node type must be
+  re-created from those resources.
 - Node.js >= 20.19
 - No runtime dependencies. The MCP client is implemented in this package, in
   ~350 lines, against the [Streamable HTTP

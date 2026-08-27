@@ -291,7 +291,7 @@ test('the guard makes approve_task structurally unreachable from check/reply/wai
 
 // --- node-level: the approval policies through the real execute() -------------
 
-const { Tendem } = require('../dist/nodes/Tendem/Tendem.node.js');
+const { TendemExpert } = require('../dist/nodes/TendemExpert/TendemExpert.node.js');
 const { mockMcpServer, makeExecuteContext } = require('./harness.js');
 
 async function executeExpert(params, toolHandler) {
@@ -300,7 +300,7 @@ async function executeExpert(params, toolHandler) {
 		params: { resource: 'expert', ...params },
 		requester: server.requester,
 	});
-	const output = await Tendem.prototype.execute.call(context);
+	const output = await TendemExpert.prototype.execute.call(context);
 	return { output: output[0], server };
 }
 
@@ -407,7 +407,7 @@ test('delegate auto-uploads chat attachments when Input Binary Fields is empty',
 		}],
 		requester: server.requester,
 	});
-	const output = (await Tendem.prototype.execute.call(context))[0];
+	const output = (await TendemExpert.prototype.execute.call(context))[0];
 
 	assert.deepEqual(output[0].json.files_attached, ['eu-freight-brokers.csv']);
 	assert.equal(ctx._puts.length, 1);

@@ -42,7 +42,7 @@
 			},
 			"id": "delegate-1",
 			"name": "Delegate to Tendem",
-			"type": "n8n-nodes-tendem.tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
 			"typeVersion": 1,
 			"position": [
 				160,
@@ -58,7 +58,7 @@
 			},
 			"id": "check-1",
 			"name": "Check & Advance",
-			"type": "n8n-nodes-tendem.tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
 			"typeVersion": 1,
 			"position": [
 				400,
@@ -233,7 +233,7 @@
 			},
 			"id": "reply-1",
 			"name": "Reply to Tendem",
-			"type": "n8n-nodes-tendem.tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
 			"typeVersion": 1,
 			"position": [
 				1460,
@@ -249,7 +249,7 @@
 			},
 			"id": "approve-1",
 			"name": "Approve (policy: Never — edit me)",
-			"type": "n8n-nodes-tendem.tendem",
+			"type": "n8n-nodes-tendem.tendemExpert",
 			"typeVersion": 1,
 			"position": [
 				940,

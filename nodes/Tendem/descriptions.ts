@@ -18,7 +18,7 @@ export const resourceField: INodeProperties = {
 	name: 'resource',
 	type: 'options',
 	noDataExpression: true,
-	default: 'task',
+	default: 'expert',
 	// Alphabetized by name — n8n's community lint requires it. `default` above decides what the
 	// node starts on, not position.
 	options: [

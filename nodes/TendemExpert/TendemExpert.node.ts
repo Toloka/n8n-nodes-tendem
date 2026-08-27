@@ -20,18 +20,18 @@ import {
 	resourceField,
 	taskFields,
 	taskOperations,
-} from './descriptions';
-import { expertFields, expertOperations } from './expertDescriptions';
-import { advance, approve, delegate, reply, waitForResult, type EngineDeps } from './engine';
+} from '../Tendem/descriptions';
+import { expertFields, expertOperations } from '../Tendem/expertDescriptions';
+import { advance, approve, delegate, reply, waitForResult, type EngineDeps } from '../Tendem/engine';
 import {
 	McpSession,
 	TENDEM_DEFAULT_ENDPOINT,
 	type McpHttpRequestOptions,
 	type McpHttpResponse,
-} from './transport';
-import { RetryingToolCaller } from './retry';
-import { guardFor, operationKey, TENDEM_TOOLS, type ToolCaller } from './tools';
-import { waitForTaskChange } from './waitForTask';
+} from '../Tendem/transport';
+import { RetryingToolCaller } from '../Tendem/retry';
+import { guardFor, operationKey, TENDEM_TOOLS, type ToolCaller } from '../Tendem/tools';
+import { waitForTaskChange } from '../Tendem/waitForTask';
 
 /**
  * One node, five resources. Expert is the high-level surface — the whole delegation choreography
@@ -46,11 +46,11 @@ import { waitForTaskChange } from './waitForTask';
  * Expert → Approve (which re-reads the live quote and refuses unless the author's policy covers
  * it) — so a spend is always a deliberate, logged, named-amount decision, never a side effect.
  */
-export class Tendem implements INodeType {
+export class TendemExpert implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Tendem',
-		name: 'tendem',
-		icon: 'file:tendem.svg',
+		name: 'tendemExpert',
+		icon: 'file:../Tendem/tendem.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
